@@ -2,10 +2,13 @@
 package com.makeasy.reactlibrary;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothHeadset;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -49,6 +52,13 @@ public class RNBluetoothListenerModule extends ReactContextBaseJavaModule {
                         break;
                     case BluetoothAdapter.STATE_OFF:
                         state = "off";
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_OFF:
+                        state = "turning off";
+                        break;
+                    case BluetoothAdapter.STATE_TURNING_ON:
+                        state = "turning on";
+                        break;
                 }
             }
 
@@ -63,7 +73,7 @@ public class RNBluetoothListenerModule extends ReactContextBaseJavaModule {
         }
     }
 
-    @ReactMethod
+    /*@ReactMethod
     public void setBluetoothOn(Callback callback) {
         if (adapter != null) {
             adapter.enable();
@@ -77,7 +87,7 @@ public class RNBluetoothListenerModule extends ReactContextBaseJavaModule {
             adapter.disable();
         }
         callback.invoke(null, adapter != null);
-    }
+    }*/
 
 
     private void registerBluetoothStateReceiver() {
@@ -88,6 +98,12 @@ public class RNBluetoothListenerModule extends ReactContextBaseJavaModule {
         }
 
         IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        filter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
+        filter.addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED);
+        filter.addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED);
+        filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED);
+        filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         context.registerReceiver(mReceiver, filter);
     }
 
@@ -97,9 +113,8 @@ public class RNBluetoothListenerModule extends ReactContextBaseJavaModule {
             Log.d(LOG_TAG, "onReceive");
             final String action = intent.getAction();
 
-            if (action.equals(BluetoothAdapter.ACTION_STATE_CHANGED)) {
-                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE,
-                        BluetoothAdapter.ERROR);
+            if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+                final int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                 String stringState = "";
 
                 switch (state) {
@@ -123,6 +138,26 @@ public class RNBluetoothListenerModule extends ReactContextBaseJavaModule {
                 Log.d(LOG_TAG, "connectionState: " + stringState);
                 emitDeviceEvent("bluetoothDidUpdateState", map);
 
+            } else if (BluetoothDevice.ACTION_ACL_CONNECTED.equals(action)) {
+               //Device is now connected
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                WritableMap map = Arguments.createMap();
+                map.putString("connectedDevice", device.getName());
+
+                Log.d(LOG_TAG, "connectedDevice: " + device.getName());
+                emitDeviceEvent("bluetoothDidUpdateState", map);
+            }
+            /*else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+             //Done searching
+            }
+            else if (BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED.equals(action)) {
+            //Device is about to disconnect
+            }
+            else if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
+            //Device has disconnected
+            }*/
+            else {
+                Log.d(LOG_TAG, "connectedDevice: " + action);
             }
         }
     };
